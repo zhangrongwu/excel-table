@@ -5,10 +5,21 @@
   font-family: 'Arial', sans-serif;
 }
 
+.excel-container {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 .data-table-container {
   background-color: white;
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
 }
 
 .table-controls {
@@ -97,6 +108,24 @@
   user-select: text;
 }
 
+table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+  transition: background-color 0.3s ease;
+}
+
+table td:hover {
+  background-color: #f5f5f5;
+}
+
+table td input {
+  width: 100%;
+  border: none;
+  outline: none;
+  padding: 5px;
+}
+
 .no-data {
   text-align: center;
   padding: 50px;
@@ -139,4 +168,22 @@
 
 .control-row button:hover {
   background-color: #357abd;
+}
+
+.toolbar button {
+  padding: 8px 12px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.toolbar button:hover {
+  background-color: #45a049;
+}
+
+.toolbar input[type="file"] {
+  padding: 8px;
+  background-color: #f1f1f1;
 }

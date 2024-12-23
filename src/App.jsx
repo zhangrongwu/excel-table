@@ -320,10 +320,186 @@ function DataTable() {
 }
 
 function App() {
+  const [data, setData] = useState([
+    ['', '', '', ''],
+    ['', '', '', ''],
+    ['', '', '', ''],
+    ['', '', '', '']
+  ]);
+  const [selectedCell, setSelectedCell] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [columnTypes, setColumnTypes] = useState({});
+  const [conditionalRules, setConditionalRules] = useState([]);
+  const inputRef = useRef(null);
+
+  // 数据验证
+  const validateCell = (value, type) => {
+    switch(type) {
+      case 'number':
+        return !isNaN(Number(value));
+      case 'email':
+        return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(value);
+      case 'date':
+        return !isNaN(Date.parse(value));
+      default:
+        return true;
+    }
+  };
+
+  // 单元格格式化
+  const formatters = {
+    currency: (value) => `$${Number(value).toFixed(2)}`,
+    percentage: (value) => `${(Number(value) * 100).toFixed(2)}%`,
+    date: (value) => new Date(value).toLocaleDateString()
+  };
+
+  // 历史记录管理
+  const saveHistory = (newData) => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push([...newData]);
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  };
+
+  // 撤销
+  const undo = () => {
+    if (historyIndex > 0) {
+      setHistoryIndex(historyIndex - 1);
+      setData(history[historyIndex - 1]);
+    }
+  };
+
+  // 重做
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      setHistoryIndex(historyIndex + 1);
+      setData(history[historyIndex + 1]);
+    }
+  };
+
+  // 处理单元格编辑
+  const handleCellEdit = (rowIndex, colIndex, value) => {
+    const newData = [...data];
+    const columnType = columnTypes[colIndex] || 'text';
+    
+    if (validateCell(value, columnType)) {
+      newData[rowIndex][colIndex] = value;
+      setData(newData);
+      saveHistory(newData);
+    } else {
+      alert(`Invalid input for column type: ${columnType}`);
+    }
+  };
+
+  // 导出到Excel
+  const exportToExcel = () => {
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+    XLSX.writeFile(workbook, "table_export.xlsx");
+  };
+
+  // 从Excel导入
+  const importFromExcel = (e) => {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const workbook = XLSX.read(event.target.result, { type: 'binary' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const importedData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      setData(importedData);
+      saveHistory(importedData);
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  // 添加行
+  const addRow = () => {
+    const newData = [...data, Array(data[0].length).fill('')];
+    setData(newData);
+    saveHistory(newData);
+  };
+
+  // 添加列
+  const addColumn = () => {
+    const newData = data.map(row => [...row, '']);
+    setData(newData);
+    saveHistory(newData);
+  };
+
+  // 条件格式化
+  const getConditionalStyle = (value, rowIndex, colIndex) => {
+    for (let rule of conditionalRules) {
+      if (rule.condition(value, rowIndex, colIndex)) {
+        return rule.style;
+      }
+    }
+    return {};
+  };
+
+  // 设置列类型
+  const setColumnType = (colIndex, type) => {
+    setColumnTypes(prev => ({...prev, [colIndex]: type}));
+  };
+
+  // 添加条件格式规则
+  const addConditionalRule = (condition, style) => {
+    setConditionalRules(prev => [...prev, { condition, style }]);
+  };
+
   return (
     <div className="App">
       <h1>Excel 数据表格</h1>
       <DataTable />
+      <div className="excel-container">
+        <div className="toolbar">
+          <button onClick={undo}>Undo</button>
+          <button onClick={redo}>Redo</button>
+          <button onClick={exportToExcel}>Export</button>
+          <input type="file" accept=".xlsx" onChange={importFromExcel} />
+          <button onClick={addRow}>Add Row</button>
+          <button onClick={addColumn}>Add Column</button>
+        </div>
+        <table>
+          <tbody>
+            {data.map((row, rowIndex) => (
+              <tr key={rowIndex}>
+                {row.map((cell, colIndex) => {
+                  const cellStyle = getConditionalStyle(cell, rowIndex, colIndex);
+                  return (
+                    <td 
+                      key={colIndex} 
+                      style={cellStyle}
+                      onDoubleClick={() => {
+                        setSelectedCell({ row: rowIndex, col: colIndex });
+                        setEditMode(true);
+                      }}
+                    >
+                      {editMode && 
+                       selectedCell?.row === rowIndex && 
+                       selectedCell?.col === colIndex ? (
+                        <input
+                          ref={inputRef}
+                          type="text"
+                          value={cell}
+                          onChange={(e) => handleCellEdit(rowIndex, colIndex, e.target.value)}
+                          onBlur={() => setEditMode(false)}
+                          autoFocus
+                        />
+                      ) : (
+                        cell
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
