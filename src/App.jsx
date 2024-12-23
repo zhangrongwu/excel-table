@@ -11,6 +11,7 @@ function DataTable() {
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [copiedData, setCopiedData] = useState(null);
   const cellInputRef = useRef(null);
 
   // Excel 内容粘贴处理
@@ -49,6 +50,11 @@ function DataTable() {
     e.preventDefault();
     const selectedText = window.getSelection().toString();
     navigator.clipboard.writeText(selectedText);
+    setCopiedData({
+      value: selectedText,
+      row: rowIndex,
+      column: columnKey
+    });
   };
 
   const handleCellPaste = (e, rowIndex, columnKey) => {
@@ -198,6 +204,24 @@ function DataTable() {
     }
   }, []);
 
+  // 复制粘贴事件监听
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'c') {
+          handleCellCopy(e, editingCell.row, editingCell.column);
+        } else if (e.key === 'v') {
+          handleCellPaste(e, editingCell.row, editingCell.column);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [editingCell]);
+
   return (
     <div className="data-table-container">
       <div className="table-controls">
@@ -332,6 +356,7 @@ function App() {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [columnTypes, setColumnTypes] = useState({});
   const [conditionalRules, setConditionalRules] = useState([]);
+  const [copiedData, setCopiedData] = useState(null);
   const inputRef = useRef(null);
 
   // 数据验证
@@ -347,6 +372,57 @@ function App() {
         return true;
     }
   };
+
+  // 复制单元格内容
+  const handleCopy = (e) => {
+    if (selectedCell) {
+      const copiedValue = data[selectedCell.row][selectedCell.col];
+      navigator.clipboard.writeText(copiedValue);
+      setCopiedData({
+        value: copiedValue,
+        row: selectedCell.row,
+        col: selectedCell.col
+      });
+    }
+  };
+
+  // 粘贴单元格内容
+  const handlePaste = (e) => {
+    if (copiedData && selectedCell) {
+      const newData = [...data];
+      newData[selectedCell.row][selectedCell.col] = copiedData.value;
+      setData(newData);
+      saveHistory(newData);
+      setCopiedData(null);
+    } else {
+      navigator.clipboard.readText().then(clipText => {
+        if (selectedCell) {
+          const newData = [...data];
+          newData[selectedCell.row][selectedCell.col] = clipText;
+          setData(newData);
+          saveHistory(newData);
+        }
+      });
+    }
+  };
+
+  // 添加键盘事件监听
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'c') {
+          handleCopy(e);
+        } else if (e.key === 'v') {
+          handlePaste(e);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedCell, data]);
 
   // 单元格格式化
   const formatters = {
@@ -469,18 +545,25 @@ function App() {
               <tr key={rowIndex}>
                 {row.map((cell, colIndex) => {
                   const cellStyle = getConditionalStyle(cell, rowIndex, colIndex);
+                  const isSelected = selectedCell?.row === rowIndex && selectedCell?.col === colIndex;
                   return (
                     <td 
                       key={colIndex} 
-                      style={cellStyle}
+                      style={{
+                        ...cellStyle,
+                        backgroundColor: isSelected ? '#e0e0e0' : cellStyle.backgroundColor
+                      }}
+                      onClick={() => {
+                        setSelectedCell({ row: rowIndex, col: colIndex });
+                      }}
                       onDoubleClick={() => {
                         setSelectedCell({ row: rowIndex, col: colIndex });
                         setEditMode(true);
                       }}
+                      onCopy={(e) => handleCopy(e)}
+                      onPaste={(e) => handlePaste(e)}
                     >
-                      {editMode && 
-                       selectedCell?.row === rowIndex && 
-                       selectedCell?.col === colIndex ? (
+                      {editMode && isSelected ? (
                         <input
                           ref={inputRef}
                           type="text"

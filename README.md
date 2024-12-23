@@ -28,7 +28,7 @@
 
 1. 克隆仓库
 ```bash
-git clone https://github.com/yourusername/excel-table.git
+git clone https://github.com/zhangrongwu/excel-table.git
 ```
 
 2. 安装依赖
@@ -75,6 +75,6 @@ npm run dev
 
 ## 📧 联系方式
 
-Your Name - your.email@example.com
+张荣武 - zhangrongwu@gmail.com
 
-项目链接: [https://github.com/yourusername/excel-table](https://github.com/yourusername/excel-table)
+项目链接: [https://github.com/zhangrongwu/excel-table](https://github.com/zhangrongwu/excel-table)
